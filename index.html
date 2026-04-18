@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>待办事项</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📝 我的待办清单</h1>
+        <div class="input-section">
+            <input type="text" id="taskInput" placeholder="今天要做什么？">
+            <select id="prioritySelect">
+                <option value="low">低</option>
+                <option value="medium" selected>中</option>
+                <option value="high">高</option>
+            </select>
+            <button id="addTaskBtn">➕ 添加任务</button>
+        </div>
+        <div id="emptyMessage" class="empty-message" style="display: none;">
+            📭 列表空空如也，快去添加任务吧！
+        </div>
+        <ul id="taskList">
+            <!-- 任务将在这里动态添加 -->
+        </ul>
+        <div class="footer">
+            <span id="taskCount">0 个任务待完成</span>
+            <div class="footer-btns">
+                <button id="clearCompletedBtn" class="clear-btn">清空已完成</button>
+                <button id="clearAllBtn" class="clear-all-btn">全部清空</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

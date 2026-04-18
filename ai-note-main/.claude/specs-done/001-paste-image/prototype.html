@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ME-005 粘贴/拖拽插入图片 — 交互原型</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+
+    .header { background: #16213e; padding: 12px 24px; border-bottom: 1px solid #2a2a4a; display: flex; align-items: center; gap: 16px; }
+    .header h1 { font-size: 14px; color: #8888aa; font-weight: 400; }
+    .header .badge { background: #3b82f6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+
+    .layout { display: flex; height: calc(100vh - 45px); }
+
+    /* Sidebar */
+    .sidebar { width: 240px; background: #16213e; border-right: 1px solid #2a2a4a; padding: 16px; }
+    .sidebar .file { padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; color: #aaa; }
+    .sidebar .file.active { background: #2a2a4a; color: #fff; }
+    .sidebar .file.folder { color: #888; }
+    .sidebar .file.folder::before { content: '📁 '; }
+    .sidebar .file.md::before { content: '📄 '; }
+    .sidebar .file.img::before { content: '🖼️ '; }
+    .sidebar .indent { padding-left: 24px; }
+
+    /* Editor */
+    .editor-area { flex: 1; display: flex; flex-direction: column; }
+    .tab-bar { background: #16213e; padding: 8px 16px 0; border-bottom: 1px solid #2a2a4a; }
+    .tab { display: inline-block; padding: 6px 16px; background: #1a1a2e; border: 1px solid #2a2a4a; border-bottom: none; border-radius: 6px 6px 0 0; font-size: 13px; color: #ccc; }
+
+    .editor {
+      flex: 1; padding: 32px 64px; overflow-y: auto;
+      max-width: 800px; margin: 0 auto; width: 100%;
+      line-height: 1.8; font-size: 15px;
+    }
+    .editor h1 { font-size: 24px; margin-bottom: 16px; color: #fff; }
+    .editor p { margin-bottom: 12px; color: #ccc; }
+    .editor .cursor { display: inline-block; width: 2px; height: 18px; background: #3b82f6; animation: blink 1s infinite; vertical-align: text-bottom; }
+    @keyframes blink { 0%,50% { opacity: 1; } 51%,100% { opacity: 0; } }
+
+    /* Image block in editor */
+    .img-block {
+      margin: 16px 0; border-radius: 8px; overflow: hidden;
+      border: 2px solid transparent; transition: border-color 0.2s;
+      position: relative;
+    }
+    .img-block:hover { border-color: #3b82f6; }
+    .img-block img { display: block; max-width: 100%; height: auto; }
+    .img-block .caption {
+      padding: 4px 8px; font-size: 12px; color: #888;
+      text-align: center; background: #16213e;
+    }
+
+    /* Drag overlay */
+    .drag-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(59, 130, 246, 0.1);
+      border: 3px dashed #3b82f6;
+      display: none; align-items: center; justify-content: center;
+      z-index: 100; pointer-events: none;
+    }
+    .drag-overlay.active { display: flex; }
+    .drag-overlay .hint {
+      background: #3b82f6; color: white; padding: 16px 32px;
+      border-radius: 12px; font-size: 16px; font-weight: 500;
+    }
+
+    /* Loading state */
+    .img-placeholder {
+      margin: 16px 0; padding: 24px; background: #16213e;
+      border: 2px dashed #3b82f6; border-radius: 8px;
+      display: flex; align-items: center; gap: 12px;
+      color: #8888aa; font-size: 13px;
+    }
+    .spinner {
+      width: 20px; height: 20px; border: 2px solid #3b82f6;
+      border-top-color: transparent; border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error state */
+    .img-error {
+      margin: 16px 0; padding: 16px; background: #2a1a1a;
+      border: 1px solid #f87171; border-radius: 8px;
+      color: #f87171; font-size: 13px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* Status bar */
+    .status-bar {
+      background: #16213e; padding: 4px 16px; border-top: 1px solid #2a2a4a;
+      font-size: 11px; color: #666; display: flex; gap: 16px;
+    }
+
+    /* Demo controls */
+    .demo-panel {
+      position: fixed; bottom: 60px; right: 24px;
+      background: #16213e; border: 1px solid #3b82f6; border-radius: 12px;
+      padding: 16px; width: 280px; z-index: 200;
+    }
+    .demo-panel h3 { font-size: 13px; color: #3b82f6; margin-bottom: 12px; }
+    .demo-btn {
+      display: block; width: 100%; padding: 8px 12px; margin-bottom: 8px;
+      background: #2a2a4a; border: 1px solid #3b82f6; border-radius: 6px;
+      color: #ccc; font-size: 13px; cursor: pointer; text-align: left;
+    }
+    .demo-btn:hover { background: #3b82f6; color: white; }
+    .demo-btn .key { color: #888; font-size: 11px; }
+
+    /* File tree update animation */
+    .file.new-file { animation: highlight 2s ease-out; }
+    @keyframes highlight { 0% { background: #3b82f633; } 100% { background: transparent; } }
+
+    /* Scenario descriptions */
+    .scenario-label {
+      position: fixed; top: 60px; right: 24px;
+      background: #3b82f6; color: white; padding: 8px 16px;
+      border-radius: 8px; font-size: 13px; z-index: 200;
+      display: none;
+    }
+    .scenario-label.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- Drag overlay -->
+  <div class="drag-overlay" id="dragOverlay">
+    <div class="hint">📎 释放以插入图片</div>
+  </div>
+
+  <!-- Scenario label -->
+  <div class="scenario-label" id="scenarioLabel"></div>
+
+  <div class="header">
+    <span class="badge">ME-005</span>
+    <h1>粘贴/拖拽插入图片 — 交互原型</h1>
+  </div>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="file folder">notes</div>
+      <div class="file md active indent">my-note.md</div>
+      <div class="file folder indent" id="assetsFolder" style="display:none">assets</div>
+      <div class="file img indent" id="assetFile1" style="display:none; padding-left: 48px;"></div>
+      <div class="file img indent" id="assetFile2" style="display:none; padding-left: 48px;"></div>
+    </div>
+
+    <!-- Editor -->
+    <div class="editor-area">
+      <div class="tab-bar">
+        <div class="tab">my-note.md</div>
+      </div>
+      <div class="editor" id="editor">
+        <h1>我的笔记</h1>
+        <p>这是一段示例文本，下面是光标位置。</p>
+        <p id="cursorLine"><span class="cursor"></span></p>
+        <p>这是光标后面的内容。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span>main</span>
+    <span>字数: 42</span>
+    <span>行 3, 列 1</span>
+    <span>UTF-8</span>
+    <span id="statusMsg">就绪</span>
+  </div>
+
+  <!-- Demo controls -->
+  <div class="demo-panel">
+    <h3>🎮 交互演示（点击模拟）</h3>
+    <button class="demo-btn" onclick="demoPaste()">
+      📋 模拟粘贴图片 <span class="key">Cmd+V</span>
+    </button>
+    <button class="demo-btn" onclick="demoDrag()">
+      🖱️ 模拟拖拽图片 <span class="key">Drag & Drop</span>
+    </button>
+    <button class="demo-btn" onclick="demoPasteMultiple()">
+      📋 模拟连续粘贴两张
+    </button>
+    <button class="demo-btn" onclick="demoError()">
+      ❌ 模拟写入失败
+    </button>
+    <button class="demo-btn" onclick="resetEditor()">
+      🔄 重置
+    </button>
+  </div>
+
+  <script>
+    let imageCount = 0;
+
+    function showScenario(text) {
+      const el = document.getElementById('scenarioLabel');
+      el.textContent = text;
+      el.classList.add('active');
+      setTimeout(() => el.classList.remove('active'), 3000);
+    }
+
+    function updateStatus(msg) {
+      document.getElementById('statusMsg').textContent = msg;
+    }
+
+    // Scenario 1: Paste image (happy path)
+    function demoPaste() {
+      showScenario('场景：用户按 Cmd+V 粘贴截图');
+      imageCount++;
+      const seq = String(imageCount).padStart(3, '0');
+      const filename = `paste-${seq}.png`;
+
+      // Step 1: Show loading placeholder at cursor
+      const placeholder = document.createElement('div');
+      placeholder.className = 'img-placeholder';
+      placeholder.id = 'placeholder-' + imageCount;
+      placeholder.innerHTML = `<div class="spinner"></div> 正在保存图片到 assets/${filename}...`;
+
+      const cursorLine = document.getElementById('cursorLine');
+      cursorLine.parentNode.insertBefore(placeholder, cursorLine);
+      updateStatus(`正在保存 assets/${filename}...`);
+
+      // Step 2: After "save", replace with image block
+      setTimeout(() => {
+        placeholder.remove();
+        const imgBlock = document.createElement('div');
+        imgBlock.className = 'img-block';
+        imgBlock.innerHTML = `
+          <img src="https://picsum.photos/600/300?random=${imageCount}" alt="pasted image" />
+          <div class="caption">assets/${filename}</div>
+        `;
+        cursorLine.parentNode.insertBefore(imgBlock, cursorLine);
+
+        // Update file tree
+        showAssetFile(filename);
+        updateStatus('就绪');
+      }, 1200);
+    }
+
+    // Scenario 2: Drag & drop
+    function demoDrag() {
+      showScenario('场景：用户从 Finder 拖拽图片到编辑器');
+
+      // Show drag overlay
+      const overlay = document.getElementById('dragOverlay');
+      overlay.classList.add('active');
+
+      setTimeout(() => {
+        overlay.classList.remove('active');
+        // Then same as paste
+        demoPaste();
+      }, 1000);
+    }
+
+    // Scenario 3: Multiple paste
+    function demoPasteMultiple() {
+      showScenario('场景：连续粘贴两张图片');
+      demoPaste();
+      setTimeout(() => demoPaste(), 2000);
+    }
+
+    // Scenario 4: Error state
+    function demoError() {
+      showScenario('场景：磁盘写入失败');
+      const errorBlock = document.createElement('div');
+      errorBlock.className = 'img-error';
+      errorBlock.innerHTML = '⚠️ 图片保存失败：磁盘空间不足。请释放空间后重试。';
+
+      const cursorLine = document.getElementById('cursorLine');
+      cursorLine.parentNode.insertBefore(errorBlock, cursorLine);
+      updateStatus('图片保存失败');
+
+      setTimeout(() => {
+        errorBlock.remove();
+        updateStatus('就绪');
+      }, 4000);
+    }
+
+    function showAssetFile(filename) {
+      const folder = document.getElementById('assetsFolder');
+      folder.style.display = 'block';
+
+      // Find empty slot
+      const file1 = document.getElementById('assetFile1');
+      const file2 = document.getElementById('assetFile2');
+      if (!file1.textContent) {
+        file1.textContent = filename;
+        file1.style.display = 'block';
+        file1.classList.add('new-file');
+      } else if (!file2.textContent) {
+        file2.textContent = filename;
+        file2.style.display = 'block';
+        file2.classList.add('new-file');
+      }
+    }
+
+    function resetEditor() {
+      document.getElementById('editor').innerHTML = `
+        <h1>我的笔记</h1>
+        <p>这是一段示例文本，下面是光标位置。</p>
+        <p id="cursorLine"><span class="cursor"></span></p>
+        <p>这是光标后面的内容。</p>
+      `;
+      document.getElementById('assetsFolder').style.display = 'none';
+      document.getElementById('assetFile1').style.display = 'none';
+      document.getElementById('assetFile1').textContent = '';
+      document.getElementById('assetFile2').style.display = 'none';
+      document.getElementById('assetFile2').textContent = '';
+      imageCount = 0;
+      updateStatus('就绪');
+      showScenario('已重置');
+    }
+  </script>
+</body>
+</html>

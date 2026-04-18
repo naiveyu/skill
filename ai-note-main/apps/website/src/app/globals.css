@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-tertiary: #f1f5f9;
+  --color-bg-card: #ffffff;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-accent: #6366f1;
+  --color-accent-hover: #4f46e5;
+  --color-accent-light: #e0e7ff;
+  --color-gradient-start: #6366f1;
+  --color-gradient-end: #8b5cf6;
+}
+
+.dark {
+  --color-bg-primary: #0a0a0f;
+  --color-bg-secondary: #111118;
+  --color-bg-tertiary: #1a1a24;
+  --color-bg-card: #16161f;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-border: #1e293b;
+  --color-accent: #818cf8;
+  --color-accent-hover: #a5b4fc;
+  --color-accent-light: rgba(99, 102, 241, 0.15);
+  --color-gradient-start: #818cf8;
+  --color-gradient-end: #a78bfa;
+}
+
+@layer base {
+  body {
+    @apply bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  ::selection {
+    @apply bg-[var(--color-accent-light)] text-[var(--color-accent)];
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-[var(--color-gradient-start)] to-[var(--color-gradient-end)];
+}

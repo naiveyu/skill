@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 助手模块原型</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; justify-content: center; padding: 40px; }
+
+    .app-layout { display: flex; width: 1100px; height: 700px; border-radius: 12px; overflow: hidden; border: 1px solid #2a2a4a; }
+
+    /* Editor area placeholder */
+    .editor-area { flex: 1; background: #16163a; display: flex; flex-direction: column; }
+    .editor-tabs { display: flex; gap: 0; border-bottom: 1px solid #2a2a4a; background: #1a1a42; }
+    .editor-tab { padding: 8px 16px; font-size: 12px; color: #888; border-right: 1px solid #2a2a4a; cursor: pointer; }
+    .editor-tab.active { color: #e0e0e0; background: #16163a; border-bottom: 2px solid #6366f1; }
+    .editor-content { flex: 1; padding: 24px; color: #666; font-size: 13px; line-height: 1.8; }
+    .editor-content h2 { color: #999; margin-bottom: 12px; font-size: 18px; }
+    .editor-content p { margin-bottom: 8px; }
+
+    /* AI Panel */
+    .ai-panel { width: 320px; border-left: 1px solid #2a2a4a; background: #16163a; display: flex; flex-direction: column; }
+
+    /* AI Header */
+    .ai-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #2a2a4a; }
+    .ai-header-left { display: flex; align-items: center; gap: 8px; }
+    .ai-header-left .sparkle { color: #6366f1; font-size: 14px; }
+    .ai-header-left .title { font-size: 13px; font-weight: 600; }
+    .ai-header-left .status { font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+    .status-configured { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .status-not-configured { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .ai-header-right { display: flex; align-items: center; gap: 4px; }
+    .ai-header-right button { background: none; border: none; color: #888; cursor: pointer; padding: 4px; border-radius: 4px; font-size: 13px; }
+    .ai-header-right button:hover { background: #2a2a4a; color: #e0e0e0; }
+
+    /* Settings panel */
+    .ai-settings { border-bottom: 1px solid #2a2a4a; padding: 12px; background: #1a1a42; display: none; }
+    .ai-settings.open { display: block; }
+    .settings-label { font-size: 11px; font-weight: 500; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .settings-input-group { display: flex; gap: 6px; margin-bottom: 8px; }
+    .settings-input { flex: 1; background: #16163a; border: 1px solid #2a2a4a; border-radius: 6px; padding: 7px 10px; font-size: 12px; color: #e0e0e0; outline: none; }
+    .settings-input:focus { border-color: #6366f1; }
+    .settings-input::placeholder { color: #555; }
+    .settings-btn { background: #6366f1; color: white; border: none; border-radius: 6px; padding: 7px 14px; font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+    .settings-btn:hover { background: #5558e6; }
+    .settings-btn.saving { opacity: 0.6; cursor: not-allowed; }
+    .settings-hint { font-size: 10px; color: #666; line-height: 1.5; margin-top: 4px; }
+    .settings-hint a { color: #6366f1; text-decoration: none; }
+    .settings-status { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+    .settings-status .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .settings-status .dot.green { background: #22c55e; }
+    .settings-status .dot.red { background: #ef4444; }
+    .settings-status .text { font-size: 11px; color: #888; }
+    .settings-status .token-preview { font-size: 10px; color: #555; font-family: monospace; }
+    .settings-reconfigure { font-size: 10px; color: #6366f1; background: none; border: none; cursor: pointer; margin-left: auto; }
+    .settings-reconfigure:hover { text-decoration: underline; }
+    .settings-success { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 6px; margin-bottom: 8px; font-size: 11px; color: #22c55e; }
+
+    /* Messages area */
+    .ai-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+
+    /* Empty state - not configured */
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; opacity: 0.6; padding: 20px; }
+    .empty-state .icon { font-size: 28px; margin-bottom: 12px; }
+    .empty-state .primary { font-size: 12px; margin-bottom: 4px; }
+    .empty-state .secondary { font-size: 10px; color: #666; line-height: 1.5; }
+    .empty-state .setup-btn { margin-top: 12px; background: #6366f1; color: white; border: none; border-radius: 6px; padding: 8px 16px; font-size: 11px; font-weight: 500; cursor: pointer; }
+
+    /* Quick actions */
+    .quick-actions { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+    .quick-actions-label { font-size: 10px; font-weight: 500; color: #666; text-transform: uppercase; letter-spacing: 0.5px; padding: 0 4px; }
+    .quick-action-btn { display: flex; align-items: flex-start; gap: 10px; width: 100%; border-radius: 8px; border: 1px solid #2a2a4a; background: #1a1a42; padding: 10px 12px; text-align: left; cursor: pointer; transition: all 0.15s; }
+    .quick-action-btn:hover { border-color: #6366f1; background: rgba(99, 102, 241, 0.05); }
+    .quick-action-btn .qa-icon { color: #6366f1; opacity: 0.7; font-size: 14px; margin-top: 1px; }
+    .quick-action-btn .qa-label { font-size: 12px; font-weight: 500; color: #e0e0e0; }
+    .quick-action-btn .qa-desc { font-size: 10px; color: #666; margin-top: 2px; }
+
+    /* Chat messages */
+    .msg-user { align-self: flex-end; max-width: 85%; background: #6366f1; color: white; border-radius: 8px; padding: 8px 12px; font-size: 12px; line-height: 1.5; }
+    .msg-assistant { align-self: flex-start; max-width: 90%; background: #1a1a42; border: 1px solid #2a2a4a; border-radius: 8px; overflow: hidden; }
+    .msg-assistant .content { padding: 8px 12px; font-size: 12px; line-height: 1.6; color: #ccc; }
+    .msg-assistant .actions { display: flex; gap: 4px; padding: 4px 8px; border-top: 1px solid #2a2a4a; background: #141432; }
+    .msg-assistant .actions button { display: flex; align-items: center; gap: 4px; background: none; border: none; color: #666; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+    .msg-assistant .actions button:hover { background: #1a1a42; color: #e0e0e0; }
+
+    /* Loading dots */
+    .loading-dots { display: flex; gap: 4px; padding: 8px 12px; }
+    .loading-dots span { width: 6px; height: 6px; border-radius: 50%; background: #6366f1; animation: bounce 1.4s infinite; }
+    .loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+
+    /* Input area */
+    .ai-input-area { border-top: 1px solid #2a2a4a; padding: 8px 12px; }
+    .ai-input-row { display: flex; gap: 6px; }
+    .ai-input-row textarea { flex: 1; resize: none; border-radius: 8px; border: 1px solid #2a2a4a; background: #1a1a42; padding: 8px 10px; font-size: 12px; color: #e0e0e0; outline: none; font-family: inherit; }
+    .ai-input-row textarea:focus { border-color: #6366f1; }
+    .ai-input-row textarea::placeholder { color: #555; }
+    .ai-send-btn { align-self: flex-end; background: #6366f1; color: white; border: none; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 500; cursor: pointer; }
+    .ai-send-btn:hover { background: #5558e6; }
+    .ai-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .ai-input-hint { text-align: center; font-size: 10px; color: #555; margin-top: 4px; }
+    .cancel-btn { width: 100%; border: 1px solid rgba(239, 68, 68, 0.3); background: none; color: #ef4444; border-radius: 6px; padding: 5px; font-size: 11px; cursor: pointer; margin-bottom: 6px; }
+    .cancel-btn:hover { background: rgba(239, 68, 68, 0.1); }
+
+    /* State controls */
+    .state-controls { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
+    .state-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #2a2a4a; background: #1a1a42; color: #888; font-size: 12px; cursor: pointer; }
+    .state-btn.active { border-color: #6366f1; color: #6366f1; background: rgba(99, 102, 241, 0.1); }
+    .state-btn:hover { border-color: #6366f1; }
+
+    h1 { font-size: 16px; color: #888; margin-bottom: 8px; text-align: center; }
+    .prototype-note { font-size: 11px; color: #555; text-align: center; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>AI 助手模块 — 交互原型</h1>
+    <p class="prototype-note">点击下方按钮切换不同状态</p>
+
+    <div class="state-controls">
+      <button class="state-btn active" onclick="showState('unconfigured')">未配置 Token</button>
+      <button class="state-btn" onclick="showState('configuring')">配置中</button>
+      <button class="state-btn" onclick="showState('configured')">已配置</button>
+      <button class="state-btn" onclick="showState('chatting')">对话中</button>
+    </div>
+
+    <div class="app-layout">
+      <!-- Editor placeholder -->
+      <div class="editor-area">
+        <div class="editor-tabs">
+          <div class="editor-tab active">学习笔记.md</div>
+          <div class="editor-tab">项目文档.md</div>
+        </div>
+        <div class="editor-content">
+          <h2>深度学习基础</h2>
+          <p>神经网络是一种受生物神经系统启发的计算模型...</p>
+          <p>反向传播算法是训练神经网络的核心方法...</p>
+          <p>梯度下降法用于最小化损失函数...</p>
+          <p>卷积神经网络（CNN）特别适合处理图像数据...</p>
+          <p>循环神经网络（RNN）用于处理序列数据...</p>
+          <p>Transformer 架构通过自注意力机制实现并行处理...</p>
+        </div>
+      </div>
+
+      <!-- AI Panel -->
+      <div class="ai-panel">
+        <!-- Header -->
+        <div class="ai-header">
+          <div class="ai-header-left">
+            <span class="sparkle">✦</span>
+            <span class="title">AI 助手</span>
+            <span id="header-status" class="status status-not-configured">未配置</span>
+          </div>
+          <div class="ai-header-right">
+            <button id="clear-btn" style="font-size: 10px; display: none;">清空</button>
+            <button id="settings-btn" onclick="toggleSettings()" title="设置">⚙</button>
+            <button onclick="document.querySelector('.ai-panel').style.display='none'" title="关闭">✕</button>
+          </div>
+        </div>
+
+        <!-- Settings panel (collapsible) -->
+        <div id="settings-panel" class="ai-settings">
+          <!-- State: input mode -->
+          <div id="settings-input-mode">
+            <div class="settings-label">Setup Token</div>
+            <div class="settings-input-group">
+              <input type="password" class="settings-input" id="token-input" placeholder="粘贴 sk-ant-oat01-..." value="">
+              <button class="settings-btn" id="save-btn" onclick="saveToken()">保存</button>
+            </div>
+            <div class="settings-hint">
+              请输入 Claude Setup Token 以启用 AI 功能。<br>
+              运行 <code style="color: #6366f1; background: #1a1a42; padding: 1px 4px; border-radius: 3px;">claude setup-token</code> 获取 Token（需 Claude Pro/Max 订阅）。
+            </div>
+          </div>
+
+          <!-- State: configured -->
+          <div id="settings-configured-mode" style="display: none;">
+            <div class="settings-label">Setup Token</div>
+            <div class="settings-status">
+              <span class="dot green"></span>
+              <span class="text">已配置</span>
+              <span class="token-preview">sk-ant-oat01-****...****</span>
+              <button class="settings-reconfigure" onclick="reconfigure()">重新设置</button>
+            </div>
+          </div>
+
+          <!-- State: success flash -->
+          <div id="settings-success" style="display: none;">
+            <div class="settings-success">✓ Token 已保存！</div>
+          </div>
+        </div>
+
+        <!-- Messages area -->
+        <div class="ai-messages" id="messages-area">
+          <!-- Dynamic content based on state -->
+        </div>
+
+        <!-- Input area -->
+        <div class="ai-input-area" id="input-area">
+          <div id="cancel-area" style="display: none;">
+            <button class="cancel-btn">取消</button>
+          </div>
+          <div class="ai-input-row">
+            <textarea rows="2" placeholder="输入 AI 指令..." id="chat-input"></textarea>
+            <button class="ai-send-btn" id="send-btn">发送</button>
+          </div>
+          <div class="ai-input-hint">Enter 发送，Shift+Enter 换行</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showState(state) {
+      // Update state buttons
+      document.querySelectorAll('.state-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const headerStatus = document.getElementById('header-status');
+      const settingsPanel = document.getElementById('settings-panel');
+      const settingsInputMode = document.getElementById('settings-input-mode');
+      const settingsConfiguredMode = document.getElementById('settings-configured-mode');
+      const settingsSuccess = document.getElementById('settings-success');
+      const messagesArea = document.getElementById('messages-area');
+      const inputArea = document.getElementById('input-area');
+      const cancelArea = document.getElementById('cancel-area');
+      const clearBtn = document.getElementById('clear-btn');
+      const chatInput = document.getElementById('chat-input');
+      const sendBtn = document.getElementById('send-btn');
+
+      // Reset
+      settingsPanel.classList.remove('open');
+      settingsInputMode.style.display = 'none';
+      settingsConfiguredMode.style.display = 'none';
+      settingsSuccess.style.display = 'none';
+      cancelArea.style.display = 'none';
+      clearBtn.style.display = 'none';
+      chatInput.disabled = false;
+      sendBtn.disabled = false;
+
+      if (state === 'unconfigured') {
+        headerStatus.className = 'status status-not-configured';
+        headerStatus.textContent = '未配置';
+        chatInput.disabled = true;
+        sendBtn.disabled = true;
+        chatInput.placeholder = '请先配置 Token...';
+        messagesArea.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">✦</div>
+            <div class="primary">未配置 AI Token</div>
+            <div class="secondary">请点击上方 ⚙ 图标，填入你的 Claude Setup Token 以启用 AI 助手。</div>
+            <button class="setup-btn" onclick="showState('configuring'); document.querySelectorAll('.state-btn')[1].classList.add('active'); document.querySelectorAll('.state-btn')[0].classList.remove('active');">配置 Token</button>
+          </div>
+        `;
+      } else if (state === 'configuring') {
+        headerStatus.className = 'status status-not-configured';
+        headerStatus.textContent = '未配置';
+        settingsPanel.classList.add('open');
+        settingsInputMode.style.display = 'block';
+        chatInput.disabled = true;
+        sendBtn.disabled = true;
+        chatInput.placeholder = '请先配置 Token...';
+        messagesArea.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">✦</div>
+            <div class="primary">配置你的 Token</div>
+            <div class="secondary">在上方输入框中粘贴你的 Claude Setup Token，然后点击保存。</div>
+          </div>
+        `;
+      } else if (state === 'configured') {
+        headerStatus.className = 'status status-configured';
+        headerStatus.textContent = '就绪';
+        chatInput.placeholder = '输入 AI 指令...';
+        messagesArea.innerHTML = `
+          <div class="quick-actions">
+            <div class="quick-actions-label">学习助手</div>
+            <button class="quick-action-btn">
+              <span class="qa-icon">☰</span>
+              <span>
+                <span class="qa-label">总结要点</span>
+                <div class="qa-desc">提炼文章核心内容，生成结构化摘要</div>
+              </span>
+            </button>
+            <button class="quick-action-btn">
+              <span class="qa-icon">📖</span>
+              <span>
+                <span class="qa-label">深度解读</span>
+                <div class="qa-desc">逐段拆解，分析论点、论据和逻辑链</div>
+              </span>
+            </button>
+            <button class="quick-action-btn">
+              <span class="qa-icon">⭐</span>
+              <span>
+                <span class="qa-label">提取知识点</span>
+                <div class="qa-desc">识别关键概念、术语和核心知识</div>
+              </span>
+            </button>
+            <button class="quick-action-btn">
+              <span class="qa-icon">📝</span>
+              <span>
+                <span class="qa-label">生成学习笔记</span>
+                <div class="qa-desc">将内容转化为易于复习的学习笔记</div>
+              </span>
+            </button>
+            <button class="quick-action-btn">
+              <span class="qa-icon">❓</span>
+              <span>
+                <span class="qa-label">生成练习题</span>
+                <div class="qa-desc">基于内容生成测试题，检验理解程度</div>
+              </span>
+            </button>
+            <button class="quick-action-btn">
+              <span class="qa-icon">💡</span>
+              <span>
+                <span class="qa-label">通俗解释</span>
+                <div class="qa-desc">用简单易懂的语言重新解释难点</div>
+              </span>
+            </button>
+          </div>
+        `;
+      } else if (state === 'chatting') {
+        headerStatus.className = 'status status-configured';
+        headerStatus.textContent = '就绪';
+        clearBtn.style.display = 'block';
+        cancelArea.style.display = 'block';
+        chatInput.placeholder = '输入 AI 指令...';
+        messagesArea.innerHTML = `
+          <div class="msg-user">请总结这篇关于深度学习的笔记的要点</div>
+          <div class="msg-assistant">
+            <div class="content">
+              <strong>深度学习基础 — 核心要点总结</strong><br><br>
+              <strong>1. 神经网络基础</strong><br>
+              神经网络是受生物神经系统启发的计算模型，通过反向传播算法和梯度下降法进行训练。<br><br>
+              <strong>2. 主要架构</strong><br>
+              • <strong>CNN</strong>：擅长图像处理，利用卷积操作提取空间特征<br>
+              • <strong>RNN</strong>：专门处理序列数据，具有时间记忆能力<br>
+              • <strong>Transformer</strong>：通过自注意力机制实现并行处理，是当前最先进的架构<br><br>
+              <strong>3. 核心训练方法</strong><br>
+              反向传播 + 梯度下降是所有深度学习模型的训练基础。
+            </div>
+            <div class="actions">
+              <button>📋 复制</button>
+              <button>💾 保存本地</button>
+            </div>
+          </div>
+          <div class="msg-user">Transformer 的自注意力机制具体是怎么工作的？</div>
+          <div class="msg-assistant">
+            <div class="loading-dots">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function toggleSettings() {
+      const panel = document.getElementById('settings-panel');
+      panel.classList.toggle('open');
+    }
+
+    function saveToken() {
+      const btn = document.getElementById('save-btn');
+      const input = document.getElementById('token-input');
+
+      btn.textContent = '保存中...';
+      btn.classList.add('saving');
+
+      setTimeout(() => {
+        document.getElementById('settings-input-mode').style.display = 'none';
+        document.getElementById('settings-success').style.display = 'block';
+
+        setTimeout(() => {
+          document.getElementById('settings-success').style.display = 'none';
+          document.getElementById('settings-configured-mode').style.display = 'block';
+          document.getElementById('header-status').className = 'status status-configured';
+          document.getElementById('header-status').textContent = '就绪';
+
+          btn.textContent = '保存';
+          btn.classList.remove('saving');
+          input.value = '';
+        }, 1500);
+      }, 800);
+    }
+
+    function reconfigure() {
+      document.getElementById('settings-configured-mode').style.display = 'none';
+      document.getElementById('settings-input-mode').style.display = 'block';
+    }
+
+    // Initialize with unconfigured state
+    showState('unconfigured');
+  </script>
+</body>
+</html>

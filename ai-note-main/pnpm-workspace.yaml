@@ -1,0 +1,5 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies: '[''bufferutil'',''utf-8-validate'',''better-sqlite3'',''electron'']'

@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: pnpm
+      - run: ELECTRON_SKIP_BINARY_DOWNLOAD=1 pnpm install --frozen-lockfile
+      - name: Build Website
+        run: pnpm build:website
+      - name: Build Server
+        run: pnpm build:server
+      - name: Test
+        run: pnpm test

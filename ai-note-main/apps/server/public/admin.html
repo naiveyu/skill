@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI-Note 管理后台</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+
+    .header { background: #1a1a2e; color: #fff; padding: 20px 30px; }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header p { color: #999; font-size: 13px; margin-top: 4px; }
+
+    .container { max-width: 1400px; margin: 24px auto; padding: 0 24px; }
+
+    /* Stats Cards */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+    .stat-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .stat-card .label { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 6px; color: #1a1a2e; }
+    .stat-card .sub { font-size: 12px; color: #999; margin-top: 4px; }
+
+    /* Chart */
+    .chart-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 20px 24px; margin-bottom: 16px; }
+    .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .chart-header h2 { font-size: 16px; font-weight: 600; }
+    .chart-tabs { display: flex; gap: 4px; }
+    .chart-tabs button { padding: 5px 14px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; font-size: 12px; cursor: pointer; color: #666; }
+    .chart-tabs button.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+    .chart-tabs button:hover:not(.active) { background: #f9fafb; }
+
+    /* Version Table */
+    .section-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow-x: auto; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #f0f0f0; }
+    .section-header h2 { font-size: 16px; font-weight: 600; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 10px 14px; font-size: 12px; color: #999; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #f0f0f0; background: #fafafa; white-space: nowrap; }
+    td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; white-space: nowrap; }
+    tr:hover { background: #fafafa; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+    .badge-published { background: #dcfce7; color: #16a34a; }
+    .badge-draft { background: #f3f4f6; color: #6b7280; }
+
+    .platform-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    .platform-darwin { background: #ede9fe; color: #7c3aed; }
+    .platform-win32 { background: #dbeafe; color: #2563eb; }
+    .platform-linux { background: #fef3c7; color: #d97706; }
+
+    /* Toggle Switch */
+    .toggle { position: relative; display: inline-block; width: 40px; height: 22px; cursor: pointer; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #e5e7eb; border-radius: 22px; transition: 0.3s; }
+    .toggle .slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
+    .toggle input:checked + .slider { background: #22c55e; }
+    .toggle input:checked + .slider:before { transform: translateX(18px); }
+
+    .btn { padding: 6px 14px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-danger { background: #fee2e2; color: #dc2626; }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-secondary { background: #f3f4f6; color: #374151; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-secondary:hover { background: #e5e7eb; }
+
+    /* Feedback Section */
+    .feedback-section { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 20px 24px; margin-top: 16px; }
+    .feedback-section h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+    .feedback-toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .filter-btn { padding: 5px 14px; border: 1px solid #e5e7eb; border-radius: 20px; background: #fff; cursor: pointer; font-size: 12px; color: #666; }
+    .filter-btn.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+    .search-input { flex: 1; min-width: 200px; padding: 6px 14px; border: 1px solid #e5e7eb; border-radius: 20px; font-size: 12px; outline: none; }
+    .search-input:focus { border-color: #6366f1; }
+    .feedback-list { display: flex; flex-direction: column; gap: 10px; }
+    .feedback-item { border: 1px solid #f0f0f0; border-radius: 8px; padding: 14px; }
+    .feedback-item:hover { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .feedback-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .type-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+    .type-badge.bug { background: #fef2f2; color: #dc2626; }
+    .type-badge.feature { background: #eff6ff; color: #2563eb; }
+    .feedback-title { font-weight: 600; font-size: 14px; }
+    .feedback-meta { font-size: 11px; color: #999; margin-left: auto; }
+    .feedback-desc { font-size: 13px; color: #555; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    .feedback-info { font-size: 11px; color: #999; display: flex; gap: 12px; margin-top: 6px; }
+    .feedback-images { display: flex; gap: 6px; margin-top: 6px; }
+    .feedback-images img { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; cursor: pointer; }
+    .image-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; cursor: pointer; }
+    .image-modal.show { display: flex; }
+    .image-modal img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+
+    .empty { text-align: center; padding: 40px; color: #999; font-size: 13px; }
+    .loading { text-align: center; padding: 40px; color: #999; font-size: 13px; }
+    .loading::after { content: ''; display: inline-block; width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; margin-left: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Notes edit modal */
+    .notes-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; justify-content: center; align-items: center; }
+    .notes-modal-overlay.show { display: flex; }
+    .notes-modal { background: #fff; border-radius: 12px; width: 420px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+    .notes-modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+    .notes-modal textarea { width: 100%; min-height: 120px; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical; outline: none; }
+    .notes-modal textarea:focus { border-color: #6366f1; }
+    .notes-modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+    .notes-modal-footer .btn { padding: 8px 20px; }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-primary:hover { background: #4f46e5; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>AI-Note 管理后台</h1>
+    <p>版本管理 · 发布控制</p>
+  </div>
+
+  <div class="container">
+    <!-- Basic Stats -->
+    <div class="stats-row" id="basicStats">
+      <div class="stat-card"><div class="label">总版本数</div><div class="value" id="totalVersions">-</div><div class="sub" id="totalPlatforms"></div></div>
+      <div class="stat-card"><div class="label">已发布</div><div class="value" style="color:#16a34a" id="publishedCount">-</div><div class="sub">当前活跃版本</div></div>
+      <div class="stat-card"><div class="label">总下载量</div><div class="value" id="totalDownloads">-</div><div class="sub">所有版本累计</div></div>
+      <div class="stat-card"><div class="label">最新版本</div><div class="value" style="font-size:22px" id="latestVersion">-</div><div class="sub" id="latestDate"></div></div>
+    </div>
+
+    <!-- Usage Stats -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="label">今日 UV</div><div class="value" id="todayUv">-</div><div class="sub" id="uvChange"></div></div>
+      <div class="stat-card"><div class="label">今日 PV</div><div class="value" id="todayPv">-</div><div class="sub" id="pvChange"></div></div>
+      <div class="stat-card"><div class="label">平均使用时长</div><div class="value" style="font-size:22px" id="avgDuration">-</div><div class="sub">近 7 天均值</div></div>
+      <div class="stat-card"><div class="label">累计用户</div><div class="value" id="totalUsers">-</div><div class="sub">独立设备总数</div></div>
+    </div>
+
+    <!-- Trend Chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h2>使用趋势</h2>
+        <div class="chart-tabs">
+          <button class="active" onclick="loadStats(7, this)">7 天</button>
+          <button onclick="loadStats(30, this)">30 天</button>
+          <button onclick="loadStats(90, this)">90 天</button>
+        </div>
+      </div>
+      <canvas id="trendChart" height="80"></canvas>
+    </div>
+
+    <!-- Version Table -->
+    <div class="section-card">
+      <div class="section-header">
+        <h2>版本列表</h2>
+        <button class="btn btn-secondary" onclick="syncCDN()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0115.4-6.4L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 01-15.4 6.4L3 16"/></svg>
+          同步 CDN 版本
+        </button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>版本</th><th>平台</th><th>文件大小</th><th>下载链接</th>
+            <th>状态</th><th style="text-align:center">发布开关</th><th style="text-align:right">下载</th>
+            <th style="text-align:center">UV / PV</th><th>上传时间</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="releasesBody">
+          <tr><td colspan="10" class="loading">加载中</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Feedback Section -->
+    <div class="feedback-section">
+      <h2>用户反馈</h2>
+      <div class="feedback-toolbar">
+        <button class="filter-btn active" onclick="setFilter('all', this)">全部</button>
+        <button class="filter-btn" onclick="setFilter('bug', this)">Bug</button>
+        <button class="filter-btn" onclick="setFilter('feature', this)">功能建议</button>
+        <input type="text" class="search-input" id="searchInput" placeholder="搜索标题或描述..." oninput="renderFeedback()">
+      </div>
+      <div class="feedback-list" id="feedbackList"><div class="loading">加载中</div></div>
+    </div>
+  </div>
+
+  <!-- Image Modal -->
+  <div class="image-modal" id="imageModal" onclick="this.classList.remove('show')">
+    <img id="modalImage" src="" alt="">
+  </div>
+
+  <!-- Notes Edit Modal -->
+  <div class="notes-modal-overlay" id="notesModal">
+    <div class="notes-modal">
+      <h3>编辑更新说明</h3>
+      <textarea id="notesText" placeholder="更新内容..."></textarea>
+      <div class="notes-modal-footer">
+        <button class="btn btn-secondary" onclick="closeNotesModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveNotes()">保存</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const KEY = new URLSearchParams(location.search).get('key') || '';
+  const BASE = location.origin;
+  const PLATFORM_NAMES = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
+  const PLATFORM_CLASS = { darwin: 'platform-darwin', win32: 'platform-win32', linux: 'platform-linux' };
+
+  let chart = null;
+  let allFeedback = [];
+  let allReleases = [];
+  let currentFilter = 'all';
+  let editingNoteId = null;
+
+  function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function fmtSize(b) { if (!b) return '-'; if (b < 1024*1024) return (b/1024).toFixed(0)+' KB'; return (b/(1024*1024)).toFixed(0)+' MB'; }
+
+  // ===== Stats =====
+  async function loadStats(days = 7, btn) {
+    if (btn) {
+      document.querySelectorAll('.chart-tabs button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+    const res = await fetch(`${BASE}/api/admin/stats?key=${KEY}&days=${days}`);
+    const data = await res.json();
+
+    document.getElementById('todayUv').textContent = data.todayUv;
+    document.getElementById('todayPv').textContent = data.todayPv;
+    document.getElementById('avgDuration').textContent = data.avgDuration ? data.avgDuration + ' min' : '0 min';
+    document.getElementById('totalUsers').textContent = data.totalUsers;
+
+    renderTrendChart(data.trend || [], days);
+
+    // Update per-version UV/PV in releases table if available
+    if (data.versionStats) {
+      window._versionStats = {};
+      data.versionStats.forEach(v => { window._versionStats[v.version] = v; });
+    }
+  }
+
+  function renderTrendChart(trend, days) {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    const labels = trend.map(d => d.date ? d.date.substring(5) : '');
+    const uvData = trend.map(d => d.uv || 0);
+    const pvData = trend.map(d => d.pv || 0);
+    const durData = trend.map(d => d.avgDuration || 0);
+
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'UV（独立设备）',
+            data: uvData,
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99,102,241,0.08)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: days <= 14 ? 3 : 0,
+          },
+          {
+            label: 'PV（打开次数）',
+            data: pvData,
+            borderColor: '#a5b4fc',
+            backgroundColor: 'rgba(165,180,252,0.05)',
+            fill: false,
+            tension: 0.3,
+            pointRadius: days <= 14 ? 3 : 0,
+          },
+          {
+            label: '平均时长 (min)',
+            data: durData,
+            borderColor: '#f59e0b',
+            borderDash: [4, 3],
+            fill: false,
+            tension: 0.3,
+            pointRadius: days <= 14 ? 3 : 0,
+            yAxisID: 'y1',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        interaction: { intersect: false, mode: 'index' },
+        scales: {
+          y: { beginAtZero: true, position: 'left', ticks: { stepSize: 1 } },
+          y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'min' } },
+        },
+        plugins: { legend: { position: 'bottom' } },
+      },
+    });
+  }
+
+  // ===== Releases =====
+  async function loadReleases() {
+    const res = await fetch(`${BASE}/api/admin/releases?key=${KEY}`);
+    const data = await res.json();
+    allReleases = data.releases || [];
+    renderReleases();
+    renderReleaseStats();
+  }
+
+  function renderReleaseStats() {
+    const r = allReleases;
+    const platforms = new Set(r.map(x => x.platform));
+    document.getElementById('totalVersions').textContent = r.length;
+    document.getElementById('totalPlatforms').textContent = platforms.size + ' 个平台';
+    document.getElementById('publishedCount').textContent = r.filter(x => x.is_published).length;
+    document.getElementById('totalDownloads').textContent = r.reduce((s, x) => s + (x.download_count || 0), 0);
+    if (r.length) {
+      document.getElementById('latestVersion').textContent = r[0].version;
+      document.getElementById('latestDate').textContent = (r[0].created_at || '').substring(0, 10) + ' 上传';
+    }
+  }
+
+  function renderReleases() {
+    const tbody = document.getElementById('releasesBody');
+    if (!allReleases.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无版本</td></tr>';
+      return;
+    }
+
+    // Group by version for rowspan merging
+    const groups = {};
+    allReleases.forEach(r => {
+      if (!groups[r.version]) groups[r.version] = [];
+      groups[r.version].push(r);
+    });
+
+    let html = '';
+    const versions = Object.keys(groups).sort((a, b) => {
+      const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+      for (let i = 0; i < 3; i++) { if ((pb[i]||0) !== (pa[i]||0)) return (pb[i]||0) - (pa[i]||0); }
+      return 0;
+    });
+
+    for (const ver of versions) {
+      const items = groups[ver];
+      items.forEach((r, idx) => {
+        const published = r.is_published ? 1 : 0;
+        const badgeClass = published ? 'badge-published' : 'badge-draft';
+        const badgeText = published ? '已发布' : '草稿';
+        const checked = published ? 'checked' : '';
+        const platClass = PLATFORM_CLASS[r.platform] || '';
+        const platName = PLATFORM_NAMES[r.platform] || r.platform;
+        const vs = window._versionStats?.[r.version];
+        const uvpv = vs ? `<span style="color:#6366f1">${vs.uv}</span> / <span style="color:#a5b4fc">${vs.pv}</span>` : '0 / 0';
+        const cdnUrl = `https://sspprriinngg.cn/releases/${r.filename}`;
+
+        html += '<tr>';
+        if (idx === 0 && items.length > 1) {
+          html += `<td rowspan="${items.length}" style="vertical-align:middle"><strong>${esc(ver)}</strong></td>`;
+        } else if (items.length === 1) {
+          html += `<td><strong>${esc(ver)}</strong></td>`;
+        }
+        html += `<td><span class="platform-tag ${platClass}">${platName}</span></td>`;
+        html += `<td>${fmtSize(r.file_size)}</td>`;
+        html += `<td><a href="${cdnUrl}" style="color:#6366f1;font-size:12px;text-decoration:none" title="${cdnUrl}" target="_blank">${esc(r.filename)}</a></td>`;
+        html += `<td><span class="badge ${badgeClass}" id="badge-${r.id}">${badgeText}</span></td>`;
+        html += `<td style="text-align:center"><label class="toggle"><input type="checkbox" ${checked} onchange="togglePublish('${r.id}', this)"><span class="slider"></span></label></td>`;
+        html += `<td style="text-align:right">${r.download_count || 0}</td>`;
+        html += `<td style="text-align:center">${uvpv}</td>`;
+        if (idx === 0 && items.length > 1) {
+          html += `<td rowspan="${items.length}" style="vertical-align:middle;font-size:12px;color:#999">${(r.created_at || '').substring(0, 16)}</td>`;
+          html += `<td rowspan="${items.length}" style="vertical-align:middle">
+            <button class="btn btn-secondary" style="margin-bottom:4px;font-size:12px" onclick="openNotesModal('${r.id}')">说明</button>
+            <button class="btn btn-danger" style="font-size:12px" onclick="deleteRelease('${r.id}')">删除</button></td>`;
+        } else if (items.length === 1) {
+          html += `<td style="font-size:12px;color:#999">${(r.created_at || '').substring(0, 16)}</td>`;
+          html += `<td>
+            <button class="btn btn-secondary" style="margin-right:4px;font-size:12px" onclick="openNotesModal('${r.id}')">说明</button>
+            <button class="btn btn-danger" style="font-size:12px" onclick="deleteRelease('${r.id}')">删除</button></td>`;
+        }
+        html += '</tr>';
+      });
+    }
+
+    tbody.innerHTML = html;
+  }
+
+  async function togglePublish(id, el) {
+    const res = await fetch(`${BASE}/api/admin/releases/${id}/publish?key=${KEY}`, { method: 'PUT' });
+    const data = await res.json();
+    const badge = document.getElementById('badge-' + id);
+    if (badge) {
+      if (data.is_published) {
+        badge.className = 'badge badge-published';
+        badge.textContent = '已发布';
+      } else {
+        badge.className = 'badge badge-draft';
+        badge.textContent = '草稿';
+      }
+    }
+    // Update local data
+    const r = allReleases.find(x => x.id === id);
+    if (r) {
+      r.is_published = data.is_published;
+      renderReleaseStats();
+    }
+  }
+
+  async function deleteRelease(id) {
+    if (!confirm('确定要删除此版本？')) return;
+    await fetch(`${BASE}/api/admin/releases/${id}?key=${KEY}`, { method: 'DELETE' });
+    allReleases = allReleases.filter(x => x.id !== id);
+    renderReleases();
+    renderReleaseStats();
+  }
+
+  async function syncCDN() {
+    const res = await fetch(`${BASE}/api/admin/releases/sync?key=${KEY}`, { method: 'POST' });
+    const data = await res.json();
+    alert(`同步完成：新增 ${data.synced} 个版本，总计 ${data.total} 个`);
+    loadReleases();
+  }
+
+  // ===== Notes Modal =====
+  function openNotesModal(id) {
+    editingNoteId = id;
+    const r = allReleases.find(x => x.id === id);
+    document.getElementById('notesText').value = r?.release_notes || '';
+    document.getElementById('notesModal').classList.add('show');
+  }
+
+  function closeNotesModal() {
+    document.getElementById('notesModal').classList.remove('show');
+    editingNoteId = null;
+  }
+
+  async function saveNotes() {
+    if (!editingNoteId) return;
+    const notes = document.getElementById('notesText').value;
+    await fetch(`${BASE}/api/admin/releases/${editingNoteId}/notes?key=${KEY}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ releaseNotes: notes }),
+    });
+    const r = allReleases.find(x => x.id === editingNoteId);
+    if (r) r.release_notes = notes;
+    closeNotesModal();
+  }
+
+  // ===== Feedback =====
+  async function loadFeedback() {
+    const res = await fetch(`${BASE}/api/admin/feedback?key=${KEY}`);
+    const data = await res.json();
+    allFeedback = data.feedback || [];
+    renderFeedback();
+  }
+
+  function setFilter(filter, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = filter;
+    renderFeedback();
+  }
+
+  function renderFeedback() {
+    const list = document.getElementById('feedbackList');
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    let filtered = allFeedback;
+    if (currentFilter !== 'all') filtered = filtered.filter(f => f.type === currentFilter);
+    if (query) filtered = filtered.filter(f => ((f.title||'')+(f.description||'')).toLowerCase().includes(query));
+
+    if (!filtered.length) { list.innerHTML = '<div class="empty">暂无反馈</div>'; return; }
+
+    list.innerHTML = filtered.map(f => {
+      const images = Array.isArray(f.images) ? f.images : [];
+      const imagesHtml = images.length ? `<div class="feedback-images">${images.map(s => `<img src="${s}" onclick="event.stopPropagation();document.getElementById('modalImage').src=this.src;document.getElementById('imageModal').classList.add('show')">`).join('')}</div>` : '';
+      return `<div class="feedback-item">
+        <div class="feedback-header">
+          <span class="type-badge ${f.type}">${f.type==='bug'?'Bug':'功能建议'}</span>
+          <span class="feedback-title">${esc(f.title)}</span>
+          <span class="feedback-meta">${f.created_at||''}</span>
+        </div>
+        <div class="feedback-desc">${esc(f.description)}</div>
+        ${imagesHtml}
+        <div class="feedback-info">
+          ${f.user_email?'<span>'+esc(f.user_email)+'</span>':'<span>匿名</span>'}
+          ${f.app_version?'<span>v'+esc(f.app_version)+'</span>':''}
+          ${f.platform?'<span>'+esc(f.platform)+'</span>':''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ===== Init =====
+  async function init() {
+    try {
+      await Promise.all([loadStats(7), loadReleases(), loadFeedback()]);
+    } catch (err) {
+      console.error('Init failed:', err);
+    }
+  }
+  init();
+</script>
+</body>
+</html>

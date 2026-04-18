@@ -1,0 +1,42 @@
+{
+  "name": "ai-note-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-Note monorepo - local-first Markdown note-taking app",
+  "scripts": {
+    "dev": "pnpm --filter @ai-note/desktop dev",
+    "build": "pnpm --filter @ai-note/desktop build",
+    "preview": "pnpm --filter @ai-note/desktop preview",
+    "dev:website": "pnpm --filter @ai-note/website dev",
+    "build:website": "pnpm --filter @ai-note/website build",
+    "dev:mobile": "pnpm --filter @ai-note/mobile start",
+    "android": "pnpm --filter @ai-note/mobile android",
+    "dist": "pnpm --filter @ai-note/desktop dist",
+    "dist:mac": "pnpm --filter @ai-note/desktop dist:mac",
+    "dist:win": "pnpm --filter @ai-note/desktop dist:win",
+    "dev:server": "pnpm --filter @ai-note/server dev",
+    "build:server": "pnpm --filter @ai-note/server build",
+    "start:server": "pnpm --filter @ai-note/server start",
+    "dev:feedback": "pnpm --filter @ai-note/feedback dev",
+    "build:feedback": "pnpm --filter @ai-note/feedback build",
+    "start:feedback": "pnpm --filter @ai-note/feedback start",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format",
+    "test": "pnpm --filter=!@ai-note/mobile -r test",
+    "typecheck": "pnpm --filter=!@ai-note/mobile -r exec tsc --noEmit"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@abandonware/bleno",
+      "better-sqlite3",
+      "electron",
+      "bufferutil",
+      "esbuild",
+      "utf-8-validate",
+      "xpc-connect"
+    ]
+  },
+  "devDependencies": {
+    "qiniu": "^7.15.1"
+  }
+}
